@@ -77,16 +77,7 @@ impl Miner {
             None => self.priority_fee.unwrap_or(0),
         };
 
-        // Adjust priority fee based on difficulty
-        if difficulty > 30 {
-            priority_fee = (priority_fee as f64 * 5.0).max(800_000.0) as u64;
-        } else if difficulty > 25 {
-            priority_fee = (priority_fee as f64 * 3.0).max(500_000.0) as u64;
-        } else if difficulty > 20 {
-            priority_fee = (priority_fee as f64 * 2.0) as u64;
-        }
-
-        let original_priority_fee = priority_fee;
+        let mut original_priority_fee = priority_fee;
 
         final_ixs.push(ComputeBudgetInstruction::set_compute_unit_price(
             priority_fee,
@@ -122,6 +113,14 @@ impl Miner {
         loop {
             // Adjust priority fee based on attempts
             if attempts == 75 {
+                // Adjust priority fee based on difficulty
+                if difficulty > 30 {
+                    original_priority_fee = (original_priority_fee as f64 * 5.0).max(800_000.0) as u64;
+                } else if difficulty > 25 {
+                    original_priority_fee = (original_priority_fee as f64 * 3.0).max(500_000.0) as u64;
+                } else if difficulty > 20 {
+                    original_priority_fee = (original_priority_fee as f64 * 2.0) as u64;
+                }
                 priority_fee = (original_priority_fee as f64 * 1.5) as u64;
             } else if attempts == 100 {
                 priority_fee = (original_priority_fee as f64 * 2.0) as u64;
