@@ -10,8 +10,10 @@ impl Miner {
             .chain(BUS_ADDRESSES.iter().map(|pubkey| pubkey.to_string()))
             .collect();
 
+        let priority_fee = self.priority_fee.unwrap_or(0);
+
         match &self.dynamic_fee_strategy {
-            None => self.priority_fee.unwrap_or(0),
+            None => priority_fee,
             Some(strategy) => {
                 let client = Client::new();
                 let body = match strategy.as_str() {
@@ -41,7 +43,7 @@ impl Miner {
                             ]
                         })
                     }
-                    _ => return self.priority_fee.unwrap_or(0),
+                    _ => return priority_fee,
                 };
 
                 // Send request
@@ -76,15 +78,10 @@ impl Miner {
                             format!("Failed to parse priority fee. Response: {:?}", response)
                         })
                         .unwrap(),
-                    _ => return self.priority_fee.unwrap_or(0),
+                    _ => return priority_fee,
                 };
 
-                // Check if the calculated fee is higher than max
-                if let Some(max_fee) = self.priority_fee {
-                    calculated_fee.min(max_fee)
-                } else {
-                    calculated_fee
-                }
+                std::cmp::max(priority_fee, calculated_fee * 12 / 10)
             }
         }
     }
