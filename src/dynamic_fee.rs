@@ -81,12 +81,7 @@ impl Miner {
                     _ => return priority_fee,
                 };
 
-                // Check if the calculated fee is higher than max
-                if let Some(max_fee) = self.priority_fee {
-                    calculated_fee.min(max_fee) * 12 / 10
-                } else {
-                    calculated_fee * 12 / 10
-                }
+                std::cmp::max(priority_fee, calculated_fee * 12 / 10)
             }
         }
     }

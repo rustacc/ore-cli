@@ -24,10 +24,10 @@ const MIN_SOL_BALANCE: f64 = 0.005;
 
 const RPC_RETRIES: usize = 0;
 const BASE_GATEWAY_RETRIES: usize = 150;
-const CONFIRM_RETRIES: usize = 1;
+const CONFIRM_RETRIES: usize = 2;
 
-const CONFIRM_DELAY: u64 = 500;
-const GATEWAY_DELAY: u64 = 300;
+const CONFIRM_DELAY: u64 = 400;
+const GATEWAY_DELAY: u64 = 0;
 
 pub enum ComputeBudget {
     Dynamic,
@@ -167,7 +167,6 @@ impl Miner {
                     let fee = priority_fee;
                     final_ixs.remove(1);
                     final_ixs.insert(1, ComputeBudgetInstruction::set_compute_unit_price(fee));
-                    progress_bar.println(format!("  Priority fee: {} microlamports", fee));
                 }
 
                 // Resign the tx
