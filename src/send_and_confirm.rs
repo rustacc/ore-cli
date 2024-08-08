@@ -71,7 +71,7 @@ impl Miner {
 
         let mut priority_fee = match &self.dynamic_fee_url {
             Some(_) => self.dynamic_fee().await,
-            None => self.priority_fee.unwrap_or(0),
+            None => self.priority_fee.unwrap_or(500_000),
         };
 
         let mut original_priority_fee = priority_fee;
@@ -154,6 +154,27 @@ impl Miner {
                 tx = Transaction::new_with_payer(&new_ixs, Some(&fee_payer.pubkey()));
 
                 // Sign the new transaction
+                if signer.pubkey() == fee_payer.pubkey() {
+                    tx.sign(&[&signer], hash);
+                } else {
+                    tx.sign(&[&signer, &fee_payer], hash);
+                }
+            }
+
+            if attempts % 5 == 0 {
+                // Reset the compute unit price
+                if self.dynamic_fee_strategy.is_some() {
+                    let fee = priority_fee;
+                    final_ixs.remove(1);
+                    final_ixs.insert(1, ComputeBudgetInstruction::set_compute_unit_price(fee));
+                    progress_bar.println(format!("  Priority fee: {} microlamports", fee));
+                }
+
+                // Resign the tx
+                let (hash, _slot) = client
+                    .get_latest_blockhash_with_commitment(self.rpc_client.commitment())
+                    .await
+                    .unwrap();
                 if signer.pubkey() == fee_payer.pubkey() {
                     tx.sign(&[&signer], hash);
                 } else {
