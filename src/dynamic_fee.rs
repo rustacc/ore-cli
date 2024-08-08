@@ -6,10 +6,9 @@ use serde_json::{json, Value};
 
 impl Miner {
     pub async fn dynamic_fee(&self) -> u64 {
-        let ore_addresses: Vec<String> =
-            std::iter::once("oreV2ZymfyeXgNgBdqMkumTqqAprVqgBWQfoYkrtKWQ".to_string())
-                .chain(BUS_ADDRESSES.iter().map(|pubkey| pubkey.to_string()))
-                .collect();
+        let ore_addresses: Vec<String> = std::iter::once(ore_api::ID.to_string())
+            .chain(BUS_ADDRESSES.iter().map(|pubkey| pubkey.to_string()))
+            .collect();
 
         let priority_fee = self.priority_fee.unwrap_or(0);
 
@@ -17,7 +16,6 @@ impl Miner {
             None => priority_fee,
             Some(strategy) => {
                 let client = Client::new();
-
                 let body = match strategy.as_str() {
                     "helius" => {
                         json!({
@@ -48,8 +46,13 @@ impl Miner {
                     _ => return priority_fee,
                 };
 
+                // Send request
+                let url = self
+                    .dynamic_fee_url
+                    .clone()
+                    .unwrap_or(self.rpc_client.url());
                 let response: Value = client
-                    .post(self.dynamic_fee_url.as_ref().unwrap())
+                    .post(url)
                     .json(&body)
                     .send()
                     .await
@@ -58,6 +61,7 @@ impl Miner {
                     .await
                     .unwrap();
 
+                // Parse fee
                 let calculated_fee = match strategy.as_str() {
                     "helius" => response["result"]["priorityFeeEstimate"]
                         .as_f64()
@@ -77,12 +81,12 @@ impl Miner {
                     _ => return priority_fee,
                 };
 
-                // Apply dynamic_fee_max if set
-                let max_fee = self.dynamic_fee_max.unwrap_or(u64::MAX);
-                let capped_fee = calculated_fee.min(max_fee);
-
-                // Use the higher of priority_fee and capped_fee, multiply it by 1.1
-                std::cmp::max(priority_fee, capped_fee * 12 / 10)
+                // Check if the calculated fee is higher than max
+                if let Some(max_fee) = self.priority_fee {
+                    calculated_fee.min(max_fee) * 12 / 10
+                } else {
+                    calculated_fee * 12 / 10
+                }
             }
         }
     }
